@@ -55,6 +55,21 @@ export interface QuizResult {
   questionsFeedback: QuestionFeedback[];
 }
 
+export type BottariEventType =
+  | "bottari_created"
+  | "bottari_opened"
+  | "play_started"
+  | "question_answered"
+  | "play_completed"
+  | "share_clicked"
+  | "link_copied"
+  | "reaction_created"
+  | "create_from_result_clicked"
+  | "login_started"
+  | "anonymous_bottari_claimed"
+  | "content_viewed"
+  | "result_viewed";
+
 export interface BottariStats {
   id: string;
   slug: string;
@@ -66,6 +81,9 @@ export interface BottariStats {
   completionRate: number;
   avgScore: number;
   shares: number;
+  reactions?: Record<string, number>;
+  createAfterPlayCount?: number;
+  viralConversionRate?: number;
   mostFailedQuestion?: {
     question: string;
     failRate: number;

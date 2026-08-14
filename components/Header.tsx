@@ -31,11 +31,8 @@ export default function Header() {
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF6B35] to-[#FFA834] flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-105 transition-transform">
           <PackageOpen className="w-4 h-4 text-white" />
         </div>
-        <span className="font-bold text-lg tracking-tight text-white flex items-center gap-1.5">
+        <span className="font-bold text-lg tracking-tight text-white">
           보따리
-          <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-full bg-orange-500/20 text-[#FF6B35] border border-orange-500/30">
-            MVP
-          </span>
         </span>
       </Link>
 

@@ -21,23 +21,52 @@ model User {
   @@index([provider, providerUserId])
 }
 
-model Bottari {
-  id             String     @id @default(cuid())
-  slug           String     @unique
-  ownerUserId    String?
-  ownerTokenHash String     // SHA-256(owner_token)
-  type           String     @default("quiz_know_me")
-  title          String
-  payload        String     // JSON: { questions: [{ id, question, options: string[], answerIndex: number }] }
-  status         String     @default("active") // "active" | "disabled"
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+model PackTemplate {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  type        String   // "friend_quiz" | "guess_me" | "first_impression" | "anonymous_feedback" | "balance"
+  category    String   // "friend" | "love" | "balance" | "anonymous" | "fun"
+  title       String
+  description String?
+  emoji       String   @default("🎁")
+  isFeatured  Boolean  @default(false)
+  order       Int      @default(0)
+  payload     String   // JSON: PackDefinition (Snapshot source)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  owner          User?      @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  packs       Bottari[]
+
+  @@index([slug])
+  @@index([type])
+  @@index([category])
+  @@index([isFeatured])
+}
+
+model Bottari {
+  id             String            @id @default(cuid())
+  slug           String            @unique
+  templateId     String?
+  ownershipType  String            @default("anonymous") // "system" | "anonymous" | "user"
+  ownerUserId    String?
+  ownerTokenHash String?           // SHA-256(owner_token) - null for system packs
+  type           String            @default("friend_quiz") // "friend_quiz" | "guess_me" | "first_impression" | "anonymous_feedback" | "balance"
+  title          String
+  description    String?
+  payload        String            // JSON: PackDefinition (Deep-copied immutable snapshot)
+  status         String            @default("active") // "active" | "disabled"
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  template       PackTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  owner          User?             @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
   responses      Response[]
+  aggregates     AnswerAggregate[]
   events         Event[]
 
   @@index([slug])
+  @@index([type])
+  @@index([ownershipType])
   @@index([ownerUserId])
   @@index([ownerTokenHash])
 }
@@ -45,20 +74,38 @@ model Bottari {
 model Response {
   id             String    @id @default(cuid())
   bottariId      String
-  score          Int       // 정답 개수
-  totalQuestions Int       // 총 문제 수
-  answersPayload String    // JSON: [0, 1, 0, ...]
+  sessionToken   String?   // 익명 플레이어 세션 식별자
+  score          Int?      // Friend Quiz용 맞힌 개수
+  totalQuestions Int?      // 전체 문항 수
+  answersPayload String    // JSON: 선택 답안 또는 익명 텍스트
+  resultPayload  String?   // JSON: 계산된 결과 (등급, 백분율 등)
+  isHidden       Boolean   @default(false) // 익명 피드백 숨김 여부
   createdAt      DateTime  @default(now())
 
   bottari        Bottari   @relation(fields: [bottariId], references: [id], onDelete: Cascade)
 
   @@index([bottariId])
+  @@index([bottariId, sessionToken])
+}
+
+model AnswerAggregate {
+  id            String   @id @default(cuid())
+  bottariId     String
+  questionIndex Int
+  optionIndex   Int
+  count         Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  bottari       Bottari  @relation(fields: [bottariId], references: [id], onDelete: Cascade)
+
+  @@unique([bottariId, questionIndex, optionIndex])
+  @@index([bottariId, questionIndex])
 }
 
 model Event {
   id         String   @id @default(cuid())
   bottariId  String
-  eventType  String   // "content_viewed" | "play_started" | "play_completed" | "result_viewed" | "share_clicked"
+  eventType  String   // "content_viewed" | "bottari_opened" | "play_started" | "question_answered" | "play_completed" | "result_viewed" | "share_clicked" | "link_copied" | "create_from_result_clicked" | "reaction_created"
   referralId String?  // 유입된 referral slug/id
   metadata   String?  // JSON
   createdAt  DateTime @default(now())

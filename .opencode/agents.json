@@ -1,0 +1,24 @@
+{
+  "agents": {
+    "bottari": {
+      "description": "BOTTARI full-stack project agent — knows everything about the project",
+      "file": "agents/bottari.md",
+      "scopes": ["app", "components", "lib", "prisma", "docs", "agents"]
+    },
+    "frontend": {
+      "description": "BOTTARI frontend/UI specialist — React, Next.js, Tailwind, components",
+      "file": "agents/frontend.md",
+      "scopes": ["app", "components", "lib", "public"]
+    },
+    "backend": {
+      "description": "BOTTARI backend/API specialist — Prisma, SQLite, API routes, auth",
+      "file": "agents/backend.md",
+      "scopes": ["app/api", "lib", "prisma", "data"]
+    },
+    "devops": {
+      "description": "BOTTARI DevOps specialist — Docker, nginx, deployment, infrastructure",
+      "file": "agents/devops.md",
+      "scopes": ["docker-compose.yml", "Dockerfile", "docker-entrypoint.sh", "nginx", "docs"]
+    }
+  }
+}

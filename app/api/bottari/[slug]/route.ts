@@ -1,58 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { BottariPlayData, PlayQuestion, QuizPayload } from "@/lib/types";
-import { logEvent } from "@/lib/analytics";
+import { PackDefinition, PackPlayData, PackType } from "@/lib/pack-types";
+import { extractPublicQuestions } from "@/lib/pack-engine";
 
-interface RouteParams {
-  params: Promise<{ slug: string }>;
-}
-
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
     const { slug } = await params;
 
     const bottari = await db.bottari.findUnique({
       where: { slug },
+      include: {
+        template: {
+          select: { title: true, emoji: true, category: true },
+        },
+      },
     });
 
-    if (!bottari || bottari.status !== "active") {
+    if (!bottari) {
       return NextResponse.json(
-        { error: "보따리를 찾을 수 없거나 비활성화되었습니다." },
+        { success: false, error: "보따리를 찾을 수 없습니다." },
         { status: 404 }
       );
     }
 
-    // 뷰 이벤트 기록
-    const searchParams = req.nextUrl.searchParams;
-    const ref = searchParams.get("ref");
-    await logEvent(bottari.id, "content_viewed", ref || null);
+    let definition: PackDefinition;
+    try {
+      definition = JSON.parse(bottari.payload);
+    } catch {
+      definition = {
+        version: 1,
+        type: bottari.type as any,
+        title: bottari.title,
+        description: bottari.description || undefined,
+        emoji: "🎁",
+        config: { type: bottari.type as any, questions: [] } as any,
+        submissionPolicy: { maxSubmissionsPerSession: 1, allowMultiple: false },
+      };
+    }
 
-    const payload = JSON.parse(bottari.payload) as QuizPayload;
+    // 보안: 정답 정보 제거된 공개 질문 목록 생성
+    const publicQuestions = extractPublicQuestions(definition);
 
-    // 정답 인덱스(answerIndex)를 필터링하여 플레이어에게 노출되지 않도록 안전하게 반환
-    const sanitizedQuestions: PlayQuestion[] = (payload.questions || []).map((q) => ({
-      id: q.id,
-      question: q.question,
-      options: q.options,
-    }));
-
-    const playData: BottariPlayData = {
+    const playData: PackPlayData = {
       id: bottari.id,
       slug: bottari.slug,
+      type: (bottari.type as PackType) || "friend_quiz",
       title: bottari.title,
-      type: bottari.type,
-      questions: sanitizedQuestions,
+      description: bottari.description,
+      emoji: definition.emoji || "🎁",
+      creatorName: definition.config.creatorName,
+      status: (bottari.status as "active" | "disabled") || "active",
+      questions: publicQuestions,
+      submissionPolicy: definition.submissionPolicy || {
+        maxSubmissionsPerSession: 1,
+        allowMultiple: false,
+      },
       createdAt: bottari.createdAt.toISOString(),
     };
 
-    return NextResponse.json({
-      success: true,
-      bottari: playData,
-    });
+    return NextResponse.json({ success: true, bottari: playData });
   } catch (err) {
-    console.error("Get bottari error:", err);
+    console.error("Get Bottari Error:", err);
     return NextResponse.json(
-      { error: "보따리 조회 중 오류가 발생했습니다." },
+      { success: false, error: "보따리 정보를 불러올 수 없습니다." },
       { status: 500 }
     );
   }

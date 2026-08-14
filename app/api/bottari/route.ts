@@ -1,103 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generateOwnerToken, generateSlug, hashOwnerToken } from "@/lib/crypto";
+import { generateOwnerToken, hashOwnerToken, generateSlug } from "@/lib/crypto";
 import { getSession } from "@/lib/auth";
-import { QuizPayload, QuizQuestion } from "@/lib/types";
 import { logEvent } from "@/lib/analytics";
+import { PackDefinition, PackType, OwnershipType } from "@/lib/pack-types";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, questions, referralId } = body;
+    const {
+      title,
+      description,
+      emoji = "🎁",
+      type = "friend_quiz",
+      templateId,
+      definition,
+      referralId,
+    } = body as {
+      title: string;
+      description?: string;
+      emoji?: string;
+      type?: PackType;
+      templateId?: string;
+      definition?: PackDefinition;
+      referralId?: string;
+    };
 
-    // 1. 유효성 검증
-    if (!title || typeof title !== "string" || title.trim().length === 0) {
+    if (!title || !title.trim()) {
       return NextResponse.json(
-        { error: "보따리 이름을 1자 이상 입력해주세요." },
+        { success: false, error: "보따리 제목을 입력해주세요." },
         { status: 400 }
       );
     }
 
-    if (!Array.isArray(questions) || questions.length < 3 || questions.length > 10) {
+    if (!definition || !definition.config) {
       return NextResponse.json(
-        { error: "질문은 최소 3개에서 최대 10개까지 등록 가능합니다." },
+        { success: false, error: "보따리 설정(definition)이 올바르지 않습니다." },
         { status: 400 }
       );
     }
 
-    // 각 질문 유효성 검증
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i] as QuizQuestion;
-      if (!q.question || typeof q.question !== "string" || q.question.trim().length === 0) {
-        return NextResponse.json(
-          { error: `${i + 1}번째 질문 내용을 입력해주세요.` },
-          { status: 400 }
-        );
-      }
-      if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 4) {
-        return NextResponse.json(
-          { error: `${i + 1}번째 질문의 선택지는 2개~4개여야 합니다.` },
-          { status: 400 }
-        );
-      }
-      if (typeof q.answerIndex !== "number" || q.answerIndex < 0 || q.answerIndex >= q.options.length) {
-        return NextResponse.json(
-          { error: `${i + 1}번째 질문의 정답을 올바르게 선택해주세요.` },
-          { status: 400 }
-        );
-      }
+    // 소유권 유형 및 사용자/토큰 결정
+    const sessionUser = await getSession();
+    let ownershipType: OwnershipType = "anonymous";
+    let ownerUserId: string | null = null;
+    let rawOwnerToken: string | null = null;
+    let ownerTokenHash: string | null = null;
+
+    if (sessionUser) {
+      ownershipType = "user";
+      ownerUserId = sessionUser.id;
+    } else {
+      ownershipType = "anonymous";
+      rawOwnerToken = generateOwnerToken();
+      ownerTokenHash = hashOwnerToken(rawOwnerToken);
     }
 
-    // 2. Slug 생성 (중복 방지)
-    let slug = generateSlug(7);
-    let attempts = 0;
-    while (attempts < 5) {
-      const existing = await db.bottari.findUnique({ where: { slug } });
-      if (!existing) break;
-      slug = generateSlug(7);
-      attempts++;
-    }
+    const slug = generateSlug(7);
 
-    // 3. 익명 소유권 토큰 생성 및 해싱
-    const ownerToken = generateOwnerToken();
-    const ownerTokenHash = hashOwnerToken(ownerToken);
-
-    // 4. 로그인 세션 확인
-    const session = await getSession();
-    const ownerUserId = session ? session.id : null;
-
-    // 5. DB 저장
-    const payload: QuizPayload = { questions };
+    // Deep-copied immutable snapshot of PackDefinition
+    const finalDefinition: PackDefinition = {
+      version: 1,
+      type: definition.type || type,
+      title: title.trim(),
+      description: description?.trim() || undefined,
+      emoji: emoji || "🎁",
+      config: definition.config,
+      submissionPolicy: definition.submissionPolicy || {
+        maxSubmissionsPerSession: definition.type === "anonymous_feedback" ? 3 : 1,
+        allowMultiple: definition.type === "anonymous_feedback",
+      },
+    };
 
     const bottari = await db.bottari.create({
       data: {
         slug,
-        title: title.trim(),
+        type: finalDefinition.type,
+        title: finalDefinition.title,
+        description: finalDefinition.description || null,
+        templateId: templateId || null,
+        ownershipType,
         ownerUserId,
         ownerTokenHash,
-        type: "quiz_know_me",
-        payload: JSON.stringify(payload),
+        payload: JSON.stringify(finalDefinition),
         status: "active",
       },
     });
 
-    // 6. 이벤트 로깅
-    await logEvent(bottari.id, "content_viewed", referralId || null, {
-      creator: ownerUserId ? "authenticated" : "anonymous",
+    await logEvent(bottari.id, "bottari_created", referralId || null, {
+      type: finalDefinition.type,
+      isTemplate: !!templateId,
+      ownershipType,
     });
 
     return NextResponse.json({
       success: true,
       slug: bottari.slug,
-      ownerToken: ownerUserId ? null : ownerToken,
       title: bottari.title,
-      questionCount: questions.length,
-      isOwnedBySession: !!ownerUserId,
+      type: bottari.type,
+      ownerToken: rawOwnerToken,
     });
   } catch (err) {
-    console.error("Create bottari error:", err);
+    console.error("Create Bottari Error:", err);
     return NextResponse.json(
-      { error: "보따리 생성 중 오류가 발생했습니다." },
+      { success: false, error: "보따리를 생성하는 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

@@ -28,10 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
-      <body className="antialiased min-h-screen bg-[#0f1016] text-[#f8fafc] flex flex-col justify-between">
-        <div className="w-full max-w-md mx-auto min-h-screen flex flex-col bg-[#14151f] shadow-2xl relative border-x border-[#232435]">
+      <body className="antialiased min-h-screen min-h-screen-dvh bg-[#0f1016] text-[#f8fafc] flex flex-col justify-between">
+        <div className="w-full max-w-md mx-auto min-h-screen min-h-screen-dvh flex flex-col bg-[#14151f] shadow-2xl relative border-x border-[#232435]">
           <Header />
-          <main className="flex-1 flex flex-col px-5 py-4 overflow-y-auto">
+          <main className="flex-1 flex flex-col px-5 py-4 overflow-y-auto pb-safe">
             {children}
           </main>
         </div>

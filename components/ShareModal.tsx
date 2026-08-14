@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Share2, X, MessageCircle } from "lucide-react";
+import { Check, Copy, Share2, X, MessageCircle, Sparkles } from "lucide-react";
+import { getShareUrl } from "@/lib/config";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -15,16 +16,14 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
 
   if (!isOpen) return null;
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/p/${slug}`
-    : `https://bottari.app/p/${slug}`;
+  const shareUrl = getShareUrl(slug);
 
-  const trackShare = async () => {
+  const trackEvent = async (eventType: "share_clicked" | "link_copied") => {
     try {
       await fetch(`/api/bottari/${slug}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventType: "share_clicked" }),
+        body: JSON.stringify({ eventType }),
       });
     } catch {
       // ignore
@@ -35,10 +34,9 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      trackShare();
-      setTimeout(() => setCopied(false), 2000);
+      trackEvent("link_copied");
+      setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback
       const textarea = document.createElement("textarea");
       textarea.value = shareUrl;
       document.body.appendChild(textarea);
@@ -46,22 +44,22 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
       document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopied(true);
-      trackShare();
-      setTimeout(() => setCopied(false), 2000);
+      trackEvent("link_copied");
+      setTimeout(() => setCopied(false), 2500);
     }
   };
 
   const handleNativeShare = async () => {
-    trackShare();
+    trackEvent("share_clicked");
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
-          title: `🎒 ${title}`,
-          text: `친구야, 나를 얼마나 알고 있어? 30초 퀴즈 보따리 풀어봐!`,
+          title: `🎁 ${title}`,
+          text: `친구야, 나를 얼마나 알고 있어? 30초 퀴즈 보따리 풀어봐! 🎁`,
           url: shareUrl,
         });
       } catch {
-        // User cancelled or not supported
+        // User cancelled
       }
     } else {
       handleCopyLink();
@@ -69,15 +67,15 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-[#1a1b28] border-t sm:border border-[#2a2c40] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl animate-scale-up">
-        {/* 상단 닫기 */}
-        <div className="flex items-center justify-between mb-5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-md bg-[#1a1b28] border-t sm:border border-[#2a2c40] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-scale-up">
+        {/* 상단 헤더 */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-orange-500/20 text-[#FF6B35]">
-              <Share2 className="w-5 h-5" />
+              <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-lg text-white">친구에게 보따리 보내기</h3>
+            <h3 className="font-extrabold text-lg text-white">친구에게 보따리 보내기</h3>
           </div>
           <button
             onClick={onClose}
@@ -87,28 +85,31 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
           </button>
         </div>
 
-        <p className="text-sm text-gray-300 mb-5 leading-relaxed">
-          카톡방이나 인스타 DM에 링크를 보내 친구들이 나를 얼마나 아는지 확인해보세요!
+        <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-normal">
+          카톡방이나 인스타 DM에 공유해보세요! 친구들이 30초 만에 풀고 결과를 보냅니다.
         </p>
 
-        {/* 공유 옵션 버튼들 */}
-        <div className="space-y-3">
+        {/* 1순위: 카카오톡 / SNS 바로 공유 */}
+        <div className="space-y-2.5 pt-1">
           <button
+            type="button"
             onClick={handleNativeShare}
-            className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl bg-[#FEE500] hover:bg-[#ebd300] text-[#191919] font-bold text-sm shadow-lg transition-all touch-active"
+            className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-[#FEE500] hover:bg-[#ebd300] text-[#191919] font-extrabold text-sm shadow-lg shadow-yellow-500/10 transition-all touch-active"
           >
             <MessageCircle className="w-5 h-5 fill-current" />
-            <span>카카오톡 / SNS로 바로 보내기</span>
+            <span>카카오톡 / DM으로 공유하기</span>
           </button>
 
+          {/* 2순위: 링크 복사 */}
           <button
+            type="button"
             onClick={handleCopyLink}
-            className="w-full flex items-center justify-between py-3.5 px-4 rounded-xl bg-[#25273c] hover:bg-[#2e314a] text-white border border-[#32354f] font-medium text-sm transition-all touch-active"
+            className="w-full flex items-center justify-between py-3.5 px-4 rounded-2xl bg-[#25273c] hover:bg-[#2e314a] text-white border border-[#343752] font-medium text-xs sm:text-sm transition-all touch-active"
           >
-            <span className="truncate max-w-[240px] text-gray-300 text-xs font-mono">
+            <span className="truncate max-w-[220px] text-gray-300 font-mono text-xs">
               {shareUrl}
             </span>
-            <div className="flex items-center gap-1 text-[#FFA834] font-bold text-xs shrink-0">
+            <div className="flex items-center gap-1.5 text-[#FFA834] font-bold text-xs shrink-0">
               {copied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-400" />
@@ -126,10 +127,11 @@ export default function ShareModal({ isOpen, onClose, title, slug }: ShareModalP
 
         {/* 닫기 버튼 */}
         <button
+          type="button"
           onClick={onClose}
-          className="w-full mt-4 py-2.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+          className="w-full pt-2 text-xs text-gray-400 hover:text-gray-200 transition-colors"
         >
-          나중에 보내기
+          닫기
         </button>
       </div>
     </div>

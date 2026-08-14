@@ -24,6 +24,16 @@ body {
   transform: scale(0.96);
 }
 
+/* 모바일 100dvh 및 Safe Area 유틸 */
+.min-h-screen-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
 /* Glassmorphic card surface */
 .bg-surface-glass {
   background: rgba(26, 26, 38, 0.85);
