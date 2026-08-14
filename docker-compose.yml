@@ -1,0 +1,24 @@
+services:
+  bottari-app:
+    container_name: bottari-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=file:/app/data/bottari.db
+      - AUTH_SECRET=${AUTH_SECRET:-bottari_super_secure_random_session_secret_key_2026}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://bottari.moru.my}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

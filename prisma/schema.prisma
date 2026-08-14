@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  provider       String    // "kakao" | "google" | "mock"
+  providerUserId String    @unique
+  name           String?
+  avatar         String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bottaris       Bottari[]
+
+  @@index([provider, providerUserId])
+}
+
+model Bottari {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  ownerUserId    String?
+  ownerTokenHash String     // SHA-256(owner_token)
+  type           String     @default("quiz_know_me")
+  title          String
+  payload        String     // JSON: { questions: [{ id, question, options: string[], answerIndex: number }] }
+  status         String     @default("active") // "active" | "disabled"
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  owner          User?      @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  responses      Response[]
+  events         Event[]
+
+  @@index([slug])
+  @@index([ownerUserId])
+  @@index([ownerTokenHash])
+}
+
+model Response {
+  id             String    @id @default(cuid())
+  bottariId      String
+  score          Int       // 정답 개수
+  totalQuestions Int       // 총 문제 수
+  answersPayload String    // JSON: [0, 1, 0, ...]
+  createdAt      DateTime  @default(now())
+
+  bottari        Bottari   @relation(fields: [bottariId], references: [id], onDelete: Cascade)
+
+  @@index([bottariId])
+}
+
+model Event {
+  id         String   @id @default(cuid())
+  bottariId  String
+  eventType  String   // "content_viewed" | "play_started" | "play_completed" | "result_viewed" | "share_clicked"
+  referralId String?  // 유입된 referral slug/id
+  metadata   String?  // JSON
+  createdAt  DateTime @default(now())
+
+  bottari    Bottari  @relation(fields: [bottariId], references: [id], onDelete: Cascade)
+
+  @@index([bottariId, eventType])
+}
