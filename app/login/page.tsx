@@ -117,19 +117,6 @@ function LoginPageInner() {
             <span>Google 계정으로 시작하기</span>
           </button>
 
-          {/* 원클릭 빠른 시작 버튼 */}
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => handleLogin("mock")}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#181926] hover:bg-[#202234] text-gray-300 font-semibold text-xs border border-[#26283b] transition-all touch-active disabled:opacity-50"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-[#FF6B35]" />
-            ) : (
-              <span>체험 계정으로 즉시 로그인</span>
-            )}
-          </button>
         </div>
 
         {errorMsg && (
