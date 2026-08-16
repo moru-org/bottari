@@ -1,25 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getTemplates, getTemplateBySlug } from "@/lib/templates";
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const slug = searchParams.get("slug");
-    const category = searchParams.get("category");
-    const featured = searchParams.get("featured") === "true";
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const featured = searchParams.get('featured') === 'true';
+  const category = searchParams.get('category');
 
-    if (slug) {
-      const template = await getTemplateBySlug(slug);
-      if (!template) {
-        return NextResponse.json({ success: false, error: "템플릿을 찾을 수 없습니다." }, { status: 404 });
-      }
-      return NextResponse.json({ success: true, template });
-    }
+  let where: Record<string, any> = {};
+  if (featured) where.isFeatured = true;
+  if (category && category !== 'all') where.category = category;
 
-    const templates = await getTemplates(category || undefined, featured);
-    return NextResponse.json({ success: true, templates });
-  } catch (err) {
-    console.error("Templates API Error:", err);
-    return NextResponse.json({ success: false, error: "템플릿을 불러오는 중 오류가 발생했습니다." }, { status: 500 });
-  }
+  const templates = await db.packTemplate.findMany({
+    where,
+    orderBy: { order: 'asc' },
+  });
+
+  return NextResponse.json({ success: true, templates });
 }

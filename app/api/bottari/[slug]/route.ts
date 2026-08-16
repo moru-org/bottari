@@ -1,72 +1,56 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { PackDefinition, PackPlayData, PackType } from "@/lib/pack-types";
-import { extractPublicQuestions } from "@/lib/pack-engine";
+import { NextRequest, NextResponse } from 'next/server';
+import { submitAnswer, getPackQuestions, getResult, createPack } from '@/lib/engine';
+
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params;
+  const { action, body } = await request.json();
+
+  if (action === 'create') {
+    try {
+      const createdSlug = await createPack(body);
+      return NextResponse.json({ success: true, slug: createdSlug });
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
+
+  if (action === 'submit') {
+    const { packId, sessionToken, questionId, optionId } = body;
+    if (!packId || !questionId || !optionId) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+    await submitAnswer(packId, sessionToken, questionId, optionId);
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'questions') {
+    const questions = await getPackQuestions(slug);
+    return NextResponse.json(questions);
+  }
+
+  if (action === 'result') {
+    const result = await getResult(slug);
+    return NextResponse.json(result);
+  }
+
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+}
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
 ) {
-  try {
-    const { slug } = await params;
+  const { slug } = await context.params;
+  const { searchParams } = new URL(request.url);
+  const action = searchParams.get('action');
 
-    const bottari = await db.bottari.findUnique({
-      where: { slug },
-      include: {
-        template: {
-          select: { title: true, emoji: true, category: true },
-        },
-      },
-    });
-
-    if (!bottari) {
-      return NextResponse.json(
-        { success: false, error: "보따리를 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
-    let definition: PackDefinition;
-    try {
-      definition = JSON.parse(bottari.payload);
-    } catch {
-      definition = {
-        version: 1,
-        type: bottari.type as any,
-        title: bottari.title,
-        description: bottari.description || undefined,
-        emoji: "🎁",
-        config: { type: bottari.type as any, questions: [] } as any,
-        submissionPolicy: { maxSubmissionsPerSession: 1, allowMultiple: false },
-      };
-    }
-
-    // 보안: 정답 정보 제거된 공개 질문 목록 생성
-    const publicQuestions = extractPublicQuestions(definition);
-
-    const playData: PackPlayData = {
-      id: bottari.id,
-      slug: bottari.slug,
-      type: (bottari.type as PackType) || "friend_quiz",
-      title: bottari.title,
-      description: bottari.description,
-      emoji: definition.emoji || "🎁",
-      creatorName: definition.config.creatorName,
-      status: (bottari.status as "active" | "disabled") || "active",
-      questions: publicQuestions,
-      submissionPolicy: definition.submissionPolicy || {
-        maxSubmissionsPerSession: 1,
-        allowMultiple: false,
-      },
-      createdAt: bottari.createdAt.toISOString(),
-    };
-
-    return NextResponse.json({ success: true, bottari: playData });
-  } catch (err) {
-    console.error("Get Bottari Error:", err);
-    return NextResponse.json(
-      { success: false, error: "보따리 정보를 불러올 수 없습니다." },
-      { status: 500 }
-    );
+  if (action === 'result') {
+    const result = await getResult(slug);
+    return NextResponse.json(result);
   }
+
+  return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }

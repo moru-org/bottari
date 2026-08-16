@@ -1,50 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { logEvent } from "@/lib/analytics";
 
-interface RouteParams {
-  params: Promise<{ slug: string }>;
-}
-
-const ALLOWED_EVENTS = [
-  "bottari_created",
-  "bottari_opened",
-  "play_started",
-  "question_answered",
-  "play_completed",
-  "share_clicked",
-  "link_copied",
-  "reaction_created",
-  "create_from_result_clicked",
-  "login_started",
-  "anonymous_bottari_claimed",
-  "content_viewed",
-  "result_viewed",
-];
-
-export async function POST(req: NextRequest, { params }: RouteParams) {
+export async function POST(req: NextRequest, context: { params: Promise<{ slug: string }> }) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const body = await req.json();
-    const { eventType, referralId, metadata } = body;
+    const { eventType, metadata } = body;
 
-    if (!eventType || !ALLOWED_EVENTS.includes(eventType)) {
-      return NextResponse.json(
-        { error: "허용되지 않은 이벤트 타입입니다." },
-        { status: 400 }
-      );
-    }
-
-    const bottari = await db.bottari.findUnique({
+    const pack = await db.pack.findUnique({
       where: { slug },
       select: { id: true },
     });
 
-    if (!bottari) {
+    if (!pack) {
       return NextResponse.json({ error: "보따리를 찾을 수 없습니다." }, { status: 404 });
     }
 
-    await logEvent(bottari.id, eventType, referralId || null, metadata);
+    await db.event.create({
+      data: {
+        packId: pack.id,
+        eventType,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

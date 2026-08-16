@@ -17,10 +17,13 @@
            ▼
 [M1 Max (192.168.0.8) - OrbStack Docker]
            │
-           │ 0.0.0.0:3000 바인딩
+           │ 0.0.0.0:30 ->3000 바인딩
            ▼
-[BOTTARI Next.js 15 컨테이너] ──> [SQLite DB: /app/prisma/data/dev.db]
+[BOTTARI Next.js 15 컨테이너] ──> [SQLite DB: /app/data/dev.db]
 ```
+
+> [!NOTE]
+> V1에서 데이터베이스는 이제 `prisma/data/dev.db` 대신 `/app/data/dev.db` 볼륨에 저장됩니다.
 
 ---
 
@@ -30,7 +33,7 @@
 - OrbStack이 구동 중인지 확인합니다.
 - 데이터 저장소 디렉토리를 생성합니다:
   ```bash
-  mkdir -p prisma/data
+  mkdir -p data
   ```
 
 ### 2.2 Docker Compose 빌드 및 실행
@@ -95,7 +98,26 @@ AUTH_SECRET="bottari_super_secure_random_session_secret_key_2026"
 
 ---
 
-## 5. 문제 해결 및 점검 (Troubleshooting)
+## 5. Docker 빌드 및 배포
+
+`Dockerfile`은 다단계 빌드(Multi-stage Build)를 사용합니다:
+
+| Stage | Purpose |
+| :--- | :--- |
+| `base` | Node.js 22 + pnpm |
+| `deps` | 의존성 설치 (패키지 캐싱) |
+| `builder` | Next.js 프로덕션 빌드 (`next build`) |
+| `runner` | 경량 프로덕션 런타임 (standalone) |
+
+빌드 시 Prisma Client 자동 생성이 포함되어 있습니다:
+```bash
+docker build -t bottari:latest .
+docker run -d -p 3000:3000 -v bottari-data:/app/data bottari:latest
+```
+
+---
+
+## 6. 문제 해결 및 점검 (Troubleshooting)
 
 ### Q1. Mac mini에서 M1 Max(192.168.0.8:3000)로 접속되지 않는 경우 (`Connection refused` 또는 타임아웃)
 1. **macOS 방화벽 확인**:
@@ -107,3 +129,7 @@ AUTH_SECRET="bottari_super_secure_random_session_secret_key_2026"
 
 ### Q2. Next.js 이미지 및 정적 파일이 깨질 때
 - `nginx/bottari.conf`의 `location /_next/static/` 캐싱 및 프록시 헤더(`Host`, `X-Forwarded-Proto`)가 정상 적용되었는지 확인합니다.
+
+### Q3. SQLite 데이터가 컨테이너 재시작 시 사라질 때
+- `VOLUME ["/app/data"]`가 볼륨 마운팅되어 있는지 확인합니다.
+- 호스트 디렉토리(`data/`)가 컨테이너 내부(`/app/data`)에 마운트되어 있는지 확인합니다.

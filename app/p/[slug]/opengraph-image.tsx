@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
 import { db } from "@/lib/db";
-import { QuizPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const alt = "보따리 퀴즈 미리보기";
@@ -10,31 +9,19 @@ export const size = {
 };
 export const contentType = "image/png";
 
-interface Props {
-  params: Promise<{ slug: string }>;
-}
-
-export default async function Image({ params }: Props) {
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
   let title = "친구의 취향 보따리";
   let questionCount = 3;
 
   try {
-    const bottari = await db.bottari.findUnique({
+    const pack = await db.pack.findUnique({
       where: { slug },
     });
 
-    if (bottari) {
-      title = bottari.title;
-      try {
-        const payload = JSON.parse(bottari.payload) as QuizPayload;
-        if (payload.questions && payload.questions.length > 0) {
-          questionCount = payload.questions.length;
-        }
-      } catch {
-        // ignore
-      }
+    if (pack) {
+      title = pack.title;
     }
   } catch {
     // fallback

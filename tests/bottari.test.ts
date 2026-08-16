@@ -9,8 +9,14 @@ describe("BOTTARI Core Architecture & Security Tests", () => {
   beforeEach(async () => {
     // 테스트용 DB 정리
     await db.event.deleteMany();
-    await db.response.deleteMany();
-    await db.bottari.deleteMany();
+    await db.submissionAnswer.deleteMany();
+    await db.submission.deleteMany();
+    await db.scoreMapping.deleteMany();
+    await db.questionOption.deleteMany();
+    await db.packQuestion.deleteMany();
+    await db.packResultCharacter.deleteMany();
+    await db.pack.deleteMany();
+    await db.packTemplate.deleteMany();
     await db.user.deleteMany();
   });
 
@@ -88,25 +94,18 @@ describe("BOTTARI Core Architecture & Security Tests", () => {
     const tokenHash = hashOwnerToken(rawOwnerToken);
     const slug = generateSlug(7);
 
-    const questions: QuizQuestion[] = [
-      { id: "q1", question: "선호 음식", options: ["치킨", "피자"], answerIndex: 0 },
-      { id: "q2", question: "선호 여행", options: ["국내", "해외"], answerIndex: 1 },
-      { id: "q3", question: "선호 요일", options: ["토", "일"], answerIndex: 0 },
-    ];
-
-    const createdBottari = await db.bottari.create({
+    const createdBottari = await db.pack.create({
       data: {
         slug,
         title: "익명 생성 보따리",
-        ownerUserId: null,
+        ownerId: null,
         ownerTokenHash: tokenHash,
-        type: "quiz_know_me",
-        payload: JSON.stringify({ questions }),
+        type: "friend_quiz",
         status: "active",
       },
     });
 
-    expect(createdBottari.ownerUserId).toBeNull();
+    expect(createdBottari.ownerId).toBeNull();
 
     // 2) 사용자 A가 로그인하여 본인 소유로 Claim
     const userA = await db.user.create({
@@ -119,18 +118,18 @@ describe("BOTTARI Core Architecture & Security Tests", () => {
 
     // 유효한 ownerToken으로 Claim 성공
     const validHash = hashOwnerToken(rawOwnerToken);
-    const claimTarget = await db.bottari.findFirst({
+    const claimTarget = await db.pack.findFirst({
       where: { slug, ownerTokenHash: validHash },
     });
     expect(claimTarget).not.toBeNull();
 
-    await db.bottari.update({
+    await db.pack.update({
       where: { id: claimTarget!.id },
-      data: { ownerUserId: userA.id },
+      data: { ownerId: userA.id },
     });
 
-    const claimedBottari = await db.bottari.findUnique({ where: { slug } });
-    expect(claimedBottari?.ownerUserId).toBe(userA.id);
+    const claimedBottari = await db.pack.findUnique({ where: { slug } });
+    expect(claimedBottari?.ownerId).toBe(userA.id);
 
     // 3) 다른 사용자 B가 잘못된 토큰 또는 이미 Claim된 보따리를 가로채려 시도하는 경우 방어
     const userB = await db.user.create({
@@ -143,16 +142,16 @@ describe("BOTTARI Core Architecture & Security Tests", () => {
 
     // 잘못된 토큰 시도 -> 조회 불가
     const fakeHash = hashOwnerToken("invalid_fake_token_12345");
-    const fakeTarget = await db.bottari.findFirst({
+    const fakeTarget = await db.pack.findFirst({
       where: { slug, ownerTokenHash: fakeHash },
     });
     expect(fakeTarget).toBeNull();
 
     // 이미 userA에게 소유권이 귀속된 보따리는 userB가 재-claim 불가
-    const reClaimCheck = await db.bottari.findFirst({
+    const reClaimCheck = await db.pack.findFirst({
       where: { slug, ownerTokenHash: validHash },
     });
-    expect(reClaimCheck?.ownerUserId).toBe(userA.id); // userA 소유 유지
-    expect(reClaimCheck?.ownerUserId).not.toBe(userB.id);
+    expect(reClaimCheck?.ownerId).toBe(userA.id); // userA 소유 유지
+    expect(reClaimCheck?.ownerId).not.toBe(userB.id);
   });
 });

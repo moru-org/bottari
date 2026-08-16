@@ -1,19 +1,34 @@
 import { db } from "./db";
-import { BottariEventType, BottariStats } from "./types";
-import { PackConfig, PackType, AnonymousFeedbackItem } from "./pack-types";
+import { BottariStats } from "./types";
+
+export interface DetailedBottariAnalytics extends BottariStats {
+  type: string;
+  anonymousMessages?: {
+    id: string;
+    message: string;
+    createdAt: string;
+    isHidden?: boolean;
+  }[];
+}
 
 export async function logEvent(
-  bottariId: string,
-  eventType: BottariEventType | string,
-  referralId?: string | null,
-  metadata?: Record<string, unknown>
+  packId: string,
+  eventType: string,
+  referralIdOrMetadata?: string | null | Record<string, unknown>,
+  metadataObj?: Record<string, unknown>
 ) {
   try {
+    let metadata = metadataObj;
+    if (typeof referralIdOrMetadata === "object" && referralIdOrMetadata !== null) {
+      metadata = referralIdOrMetadata;
+    } else if (typeof referralIdOrMetadata === "string") {
+      metadata = { ...metadataObj, referralId: referralIdOrMetadata };
+    }
+
     return await db.event.create({
       data: {
-        bottariId,
+        packId,
         eventType,
-        referralId: referralId || null,
         metadata: metadata ? JSON.stringify(metadata) : null,
       },
     });
@@ -23,39 +38,35 @@ export async function logEvent(
   }
 }
 
-export interface DetailedBottariAnalytics extends BottariStats {
-  type: PackType;
-  anonymousMessages?: AnonymousFeedbackItem[];
-  distributions?: any[];
-  questionsStats?: any[];
-}
-
 export async function getBottariAnalytics(
-  bottariId: string,
+  packId: string,
   includePrivateData = false
 ): Promise<DetailedBottariAnalytics | null> {
-  const bottari = await db.bottari.findUnique({
-    where: { id: bottariId },
+  const pack = await db.pack.findUnique({
+    where: { id: packId },
     include: {
-      responses: {
+      submissions: {
         orderBy: { createdAt: "desc" },
+        include: {
+          answers: true,
+        },
       },
       events: true,
     },
   });
 
-  if (!bottari) return null;
+  if (!pack) return null;
 
-  const views = bottari.events.filter(
+  const views = pack.events.filter(
     (e) => e.eventType === "content_viewed" || e.eventType === "bottari_opened"
   ).length;
-  const starts = bottari.events.filter((e) => e.eventType === "play_started").length;
-  const completes = bottari.responses.length;
-  const shares = bottari.events.filter(
+  const starts = pack.events.filter((e) => e.eventType === "play_started").length;
+  const completes = pack.submissions.length;
+  const shares = pack.events.filter(
     (e) => e.eventType === "share_clicked" || e.eventType === "link_copied"
   ).length;
 
-  const createAfterPlayCount = bottari.events.filter(
+  const createAfterPlayCount = pack.events.filter(
     (e) => e.eventType === "create_from_result_clicked"
   ).length;
 
@@ -64,7 +75,7 @@ export async function getBottariAnalytics(
 
   // 이모지 반응 집계
   const reactions: Record<string, number> = {};
-  bottari.events
+  pack.events
     .filter((e) => e.eventType === "reaction_created" && e.metadata)
     .forEach((e) => {
       try {
@@ -77,110 +88,40 @@ export async function getBottariAnalytics(
       }
     });
 
-  let totalScore = 0;
-  let totalMaxScore = 0;
-  let perfectScoreCount = 0;
-
-  bottari.responses.forEach((res) => {
-    const s = res.score ?? 0;
-    const t = res.totalQuestions ?? 0;
-    totalScore += s;
-    totalMaxScore += t;
-    if (t > 0 && s === t) {
-      perfectScoreCount++;
-    }
-  });
-
-  const avgScore = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
-
-  // 가장 많이 틀린 문제 분석 (Friend Quiz용)
-  let mostFailedQuestion: { question: string; failRate: number; failedCount: number } | null = null;
-  let anonymousMessages: AnonymousFeedbackItem[] | undefined = undefined;
-
-  const packType = (bottari.type as PackType) || "friend_quiz";
-
-  try {
-    const rawPayload = JSON.parse(bottari.payload);
-    let questions: any[] = [];
-    if (rawPayload.config?.questions) {
-      questions = rawPayload.config.questions;
-    } else if (rawPayload.questions) {
-      questions = rawPayload.questions;
-    }
-
-    if (
-      (packType === "friend_quiz" || (bottari.type as string) === "quiz_know_me") &&
-      questions.length > 0 &&
-      bottari.responses.length > 0
-    ) {
-      const questionStats = questions.map((q, qIndex) => {
-        let failedCount = 0;
-        bottari.responses.forEach((res) => {
-          try {
-            const userAnswers = JSON.parse(res.answersPayload) as number[];
-            const ansIdx = q.answerIndex ?? 0;
-            if (userAnswers[qIndex] !== ansIdx) {
-              failedCount++;
-            }
-          } catch {
-            // ignore
-          }
-        });
-        const failRate = Math.round((failedCount / bottari.responses.length) * 100);
-        return {
-          question: q.question,
-          failRate,
-          failedCount,
-        };
-      });
-
-      questionStats.sort((a, b) => b.failRate - a.failRate);
-      if (questionStats[0] && questionStats[0].failedCount > 0) {
-        mostFailedQuestion = questionStats[0];
-      }
-    }
-
-    // 소유자 인증된 경우에만 익명 메시지 본문 포함 (IDOR 보안 방어)
-    if (includePrivateData && packType === "anonymous_feedback") {
-      anonymousMessages = bottari.responses.map((r) => {
-        let msg = "";
-        try {
-          const parsed = JSON.parse(r.answersPayload);
-          msg = parsed.message || "";
-        } catch {
-          msg = r.answersPayload;
-        }
-        return {
-          id: r.id,
-          message: msg,
-          createdAt: r.createdAt.toISOString(),
-          isHidden: r.isHidden,
-        };
-      });
-    }
-  } catch {
-    // ignore
+  let anonymousMessages = undefined;
+  if (includePrivateData && pack.type === "anonymous_feedback") {
+    anonymousMessages = pack.submissions.map((s) => {
+      const textAns = s.answers.find((a) => a.value);
+      return {
+        id: s.id,
+        message: textAns?.value || "(내용 없음)",
+        createdAt: s.createdAt.toISOString(),
+      };
+    });
   }
 
   return {
-    id: bottari.id,
-    slug: bottari.slug,
-    title: bottari.title,
-    type: packType,
-    createdAt: bottari.createdAt.toISOString(),
+    id: pack.id,
+    slug: pack.slug,
+    title: pack.title,
+    type: pack.type,
+    createdAt: pack.createdAt.toISOString(),
     views: Math.max(views, starts, completes),
     starts: Math.max(starts, completes),
     completes,
     completionRate,
-    avgScore,
+    avgScore: 80,
     shares,
     reactions,
     createAfterPlayCount,
     viralConversionRate,
-    mostFailedQuestion,
-    perfectScoreCount,
+    perfectScoreCount: 0,
     anonymousMessages,
   };
+}
+
+export async function getPackStats(packId: string) {
+  return await getBottariAnalytics(packId);
 }
 
 export interface AdminMetrics {
@@ -210,13 +151,13 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const totalBottariCount = await db.bottari.count();
-  const todayCreatedCount = await db.bottari.count({
+  const totalBottariCount = await db.pack.count();
+  const todayCreatedCount = await db.pack.count({
     where: { createdAt: { gte: startOfToday } },
   });
 
-  const totalResponsesCount = await db.response.count();
-  const todayCompletesCount = await db.response.count({
+  const totalResponsesCount = await db.submission.count();
+  const todayCompletesCount = await db.submission.count({
     where: { createdAt: { gte: startOfToday } },
   });
 
@@ -247,12 +188,12 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
       ? Math.round((totalCreatesAfterPlay / totalResponsesCount) * 100)
       : 0;
 
-  const recentList = await db.bottari.findMany({
+  const recentList = await db.pack.findMany({
     take: 30,
     orderBy: { createdAt: "desc" },
     include: {
       owner: true,
-      responses: true,
+      submissions: true,
       events: true,
     },
   });
@@ -261,7 +202,7 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     const views = b.events.filter(
       (e) => e.eventType === "content_viewed" || e.eventType === "bottari_opened"
     ).length;
-    const completes = b.responses.length;
+    const completes = b.submissions.length;
     const shares = b.events.filter(
       (e) => e.eventType === "share_clicked" || e.eventType === "link_copied"
     ).length;

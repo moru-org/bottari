@@ -5,10 +5,10 @@ import { hashOwnerToken } from "@/lib/crypto";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const body = await req.json();
     const { status, ownerToken } = body as {
       status: "active" | "disabled";
@@ -25,26 +25,25 @@ export async function POST(
     const session = await getSession();
     const tokenHash = ownerToken ? hashOwnerToken(ownerToken) : null;
 
-    // 소유자 확인 (세션 or 토큰 해시)
-    const bottari = await db.bottari.findFirst({
+    const pack = await db.pack.findFirst({
       where: {
         slug,
         OR: [
-          session ? { ownerUserId: session.id } : { id: "no_match" },
+          session ? { ownerId: session.id } : { id: "no_match" },
           tokenHash ? { ownerTokenHash: tokenHash } : { id: "no_match" },
         ],
       },
     });
 
-    if (!bottari) {
+    if (!pack) {
       return NextResponse.json(
         { success: false, error: "보따리 소유자 권한이 없습니다." },
         { status: 403 }
       );
     }
 
-    const updated = await db.bottari.update({
-      where: { id: bottari.id },
+    const updated = await db.pack.update({
+      where: { id: pack.id },
       data: { status },
     });
 

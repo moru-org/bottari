@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashOwnerToken } from "@/lib/crypto";
-import { OwnerTokenItem } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { tokens } = body as { tokens: OwnerTokenItem[] };
+    const { tokens } = body as { tokens: { slug: string; token: string }[] };
 
     if (!Array.isArray(tokens) || tokens.length === 0) {
       return NextResponse.json({
@@ -32,33 +31,29 @@ export async function POST(req: NextRequest) {
 
       const tokenHash = hashOwnerToken(item.token);
 
-      // 1. 토큰 해시가 일치하고 아직 주인이 없는(ownerUserId === null) 보따리 조회
-      const bottari = await db.bottari.findFirst({
+      const pack = await db.pack.findFirst({
         where: {
           slug: item.slug,
           ownerTokenHash: tokenHash,
         },
       });
 
-      if (bottari) {
-        // 이미 본인 소유인 경우
-        if (bottari.ownerUserId === session.id) {
-          claimedSlugs.push(bottari.slug);
+      if (pack) {
+        if (pack.ownerId === session.id) {
+          claimedSlugs.push(pack.slug);
           continue;
         }
 
-        // 다른 사용자에게 이미 claim된 경우 보안상 덮어쓰기 불가
-        if (bottari.ownerUserId && bottari.ownerUserId !== session.id) {
+        if (pack.ownerId && pack.ownerId !== session.id) {
           continue;
         }
 
-        // 미귀속 보따리를 현재 로그인 사용자로 업데이트
-        await db.bottari.update({
-          where: { id: bottari.id },
-          data: { ownerUserId: session.id },
+        await db.pack.update({
+          where: { id: pack.id },
+          data: { ownerId: session.id },
         });
 
-        claimedSlugs.push(bottari.slug);
+        claimedSlugs.push(pack.slug);
       }
     }
 

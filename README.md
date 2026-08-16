@@ -9,13 +9,27 @@
 1. **무로그인 초고속 생성 (No-Login First):**
    - 로그인 없이 즉시 "나를 얼마나 알아?" 퀴즈 보따리 제작
    - 원클릭으로 카카오톡/인스타 DM 공유 링크 발급
+
 2. **무마찰 소유권 전환 (Anonymous Ownership Claim):**
    - 브라우저에 저장된 고유 토큰(`owner_token`)을 통해 로그인 시 내 계정으로 한 번에 귀속
+
 3. **바이럴 루프 (Viral Loop):**
    - 친구의 보따리를 풀고 바로 자신의 보따리를 생성하는 연쇄 유입 구조
+
 4. **리텐션 & Fun 대시보드 (Retention & Reactions):**
    - 총 조회수, 참여수, 완료수, 완료율, 평균 점수, 공유수 실시간 집계
    - "가장 많이 틀린 문제", "100점 만점 친구" 등 재방문 유도 통계
+
+5. **5종 플레이 포맷 엔진:**
+   - `friend_quiz` — 정답 퀴즈 (찐친 등급)
+   - `guess_me` — creator 선택 매칭
+   - `first_impression` — 친구들의 이미지 통계
+   - `anonymous_feedback` — 익명 메시지 보따리
+   - `balance` — 2지선다 밸런스 게임
+
+6. **18종 템플릿 시스템:**
+   - 친구, 연애, 밸런스, 익명, 꿀잼 5개 카테고리
+   - 홈 화면에서 원클릭 보따리 시작
 
 ---
 
@@ -26,6 +40,7 @@
 - **Styling:** Tailwind CSS (Mobile-First)
 - **Database & ORM:** Prisma ORM (SQLite / PostgreSQL)
 - **Test:** Vitest
+- **Build:** Docker (multi-stage)
 
 ---
 
@@ -46,13 +61,18 @@ cp .env.example .env
 pnpm db:push
 ```
 
-### 4. 개발 서버 실행
+### 4. 템플릿 시드 (초기 데이터 삽입)
+```bash
+pnpm db:seed
+```
+
+### 5. 개발 서버 실행
 ```bash
 pnpm dev
 ```
 브라우저에서 `http://localhost:3000` 접속
 
-### 5. 테스트 실행
+### 6. 테스트 실행
 ```bash
 pnpm test
 ```
@@ -60,5 +80,7 @@ pnpm test
 ---
 
 ## 📚 Documentation
+
 - [제품 사양서 (PRODUCT.md)](docs/PRODUCT.md)
 - [아키텍처 명세서 (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
+- [OrbStack & Nginx 연동 가이드 (DEPLOYMENT_ORBSTACK_NGINX.md)](docs/DEPLOYMENT_ORBSTACK_NGINX.md)

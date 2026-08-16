@@ -6,14 +6,11 @@ import {
   Sparkles,
   ArrowRight,
   User,
-  Play,
   Flame,
-  Shuffle,
   Loader2,
 } from "lucide-react";
 import { getOwnerTokens } from "@/lib/storage";
 import { TEMPLATE_CATEGORIES } from "@/data/pack-templates";
-import { CategoryType, PackTemplateDefinition } from "@/lib/pack-types";
 
 export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("featured");
@@ -25,16 +22,16 @@ export default function HomePage() {
     const tokens = getOwnerTokens();
     setCreatedCount(tokens.length);
     fetchTemplates();
-  }, []);
+  }, [selectedCategory]);
 
-  const fetchTemplates = async (cat = "featured") => {
+  const fetchTemplates = async () => {
     setLoading(true);
     try {
       let url = "/api/templates";
-      if (cat === "featured") {
+      if (selectedCategory === "featured") {
         url += "?featured=true";
-      } else if (cat !== "all") {
-        url += `?category=${cat}`;
+      } else if (selectedCategory !== "all") {
+        url += `?category=${selectedCategory}`;
       }
       const res = await fetch(url);
       const data = await res.json();
@@ -50,7 +47,6 @@ export default function HomePage() {
 
   const handleSelectCategory = (catId: string) => {
     setSelectedCategory(catId);
-    fetchTemplates(catId);
   };
 
   return (
@@ -83,7 +79,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* 카테고리 탭 (기술적 타입 이름 완전 분리) */}
+        {/* 카테고리 탭 */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           <button
             type="button"
@@ -137,7 +133,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-0.5">
-            {templates.map((tpl) => (
+            {templates.map((tpl: any) => (
               <div
                 key={tpl.id || tpl.slug}
                 className="p-4 rounded-2xl bg-[#1c1d2c] border border-[#2c2e44] hover:border-orange-500/40 shadow-md space-y-3 transition-all group"
@@ -161,7 +157,6 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* 액션 버튼 2개: 내 것으로 만들기 / 직접 해보기 */}
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <Link
                     href={`/create?template=${tpl.slug}`}
