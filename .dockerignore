@@ -9,6 +9,7 @@ target
 dist
 out
 agents
+.agents
 AGENTS.md
 CLAUDE.md
 GEMINI.md
