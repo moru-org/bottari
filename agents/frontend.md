@@ -5,6 +5,7 @@ Your scope: `app/`, `components/`, `lib/`, `public/`, and all frontend code.
 Always reference `agents/rules.md` for product terminology.
 
 ## Design Principles
+- **Skill Reference:** UI 설계 및 개성 있는 시각 디자인 시 [`agents/skills/frontend-design/SKILL.md`](skills/frontend-design/SKILL.md) 가이드를 준수합니다.
 - **Mobile-First:** Max-width 448px centered container, thumb-friendly touch targets (min 44px)
 - **Dark Theme:** `#1A1A24` surface, `#F8FAFC` text, brand accent colors
 - **No text zoom:** `user-scalable: false`, `maximumScale: 1` in viewport

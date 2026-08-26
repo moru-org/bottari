@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const { slug } = await params;
     const session = await getSession();
 
-    const bottari = await db.bottari.findUnique({
+    const bottari = await db.pack.findUnique({
       where: { slug },
     });
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (session && bottari.ownerUserId === session.id) {
+    if (session && bottari.ownerId === session.id) {
       const analytics = await getBottariAnalytics(bottari.id, true);
       return NextResponse.json({
         success: true,
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     const { token } = body as { token?: string };
 
-    const bottari = await db.bottari.findUnique({
+    const bottari = await db.pack.findUnique({
       where: { slug },
     });
 

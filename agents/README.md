@@ -9,7 +9,9 @@ agents/
 ├── backend.md          # Backend Agent — API/DB 담당
 ├── devops.md           # DevOps Agent — 인프라/배포 담당
 ├── skills/
-│   └── bottari-dev.md  # Full-stack development skill 정의
+│   ├── bottari-dev.md  # Full-stack development skill 정의
+│   └── frontend-design/ # 고유한 시각적 아이덴티티 및 UI 디자인 가이드
+│       └── SKILL.md
 ├── workflows/
 │   ├── create-page.md      # 새 페이지 생성 워크플로우
 │   ├── add-api-route.md    # 새 API 라우트 추가 워크플로우

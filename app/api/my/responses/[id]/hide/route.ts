@@ -18,9 +18,9 @@ export async function POST(
     const session = await getSession();
     const tokenHash = ownerToken ? hashOwnerToken(ownerToken) : null;
 
-    const responseItem = await db.response.findUnique({
+    const responseItem = await db.submission.findUnique({
       where: { id },
-      include: { bottari: true },
+      include: { pack: true },
     });
 
     if (!responseItem) {
@@ -31,8 +31,8 @@ export async function POST(
     }
 
     const isOwner =
-      (session && responseItem.bottari.ownerUserId === session.id) ||
-      (tokenHash && responseItem.bottari.ownerTokenHash === tokenHash);
+      (session && responseItem.pack.ownerId === session.id) ||
+      (tokenHash && responseItem.pack.ownerTokenHash === tokenHash);
 
     if (!isOwner) {
       return NextResponse.json(
@@ -41,15 +41,18 @@ export async function POST(
       );
     }
 
-    const updated = await db.response.update({
-      where: { id },
-      data: { isHidden },
+    await db.event.create({
+      data: {
+        packId: responseItem.packId,
+        eventType: isHidden ? "response_hidden" : "response_unhidden",
+        metadata: JSON.stringify({ submissionId: id }),
+      },
     });
 
     return NextResponse.json({
       success: true,
-      id: updated.id,
-      isHidden: updated.isHidden,
+      id,
+      isHidden,
     });
   } catch (err) {
     console.error("Hide response error:", err);

@@ -6,13 +6,12 @@ Always reference `agents/rules.md` for project context.
 
 ## Infrastructure Topology
 ```
-Mac mini (192.168.0.5)
-  └── Public ingress (80/443 SSL)
-        └── M1 Max (192.168.0.8:8090)
-              └── moru-nginx (reverse proxy)
-                    └── bottari-app container (port 3000)
-                          └── Next.js Standalone
-                                └── SQLite at /app/data/bottari.db
+cy-server (192.168.0.10)
+  └── Public ingress: shared-nginx (80/443 SSL)
+        ├── moru.my / www.moru.my -> moru-app (port 3001)
+        └── bottari.moru.my -> bottari-app (port 3000)
+              └── Next.js Standalone
+                    └── SQLite at /app/data/bottari.db
 ```
 
 ## Components

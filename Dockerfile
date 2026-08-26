@@ -20,6 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DATABASE_URL="file:./dev.db"
 RUN npx prisma generate
 RUN pnpm build
 
@@ -38,6 +39,7 @@ RUN mkdir -p /app/data
 # Standalone 실행 파일 및 Prisma 파일 복사
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/data ./data
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json

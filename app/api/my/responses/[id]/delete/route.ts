@@ -15,9 +15,9 @@ export async function DELETE(
     const session = await getSession();
     const tokenHash = ownerToken ? hashOwnerToken(ownerToken) : null;
 
-    const responseItem = await db.response.findUnique({
+    const responseItem = await db.submission.findUnique({
       where: { id },
-      include: { bottari: true },
+      include: { pack: true },
     });
 
     if (!responseItem) {
@@ -28,8 +28,8 @@ export async function DELETE(
     }
 
     const isOwner =
-      (session && responseItem.bottari.ownerUserId === session.id) ||
-      (tokenHash && responseItem.bottari.ownerTokenHash === tokenHash);
+      (session && responseItem.pack.ownerId === session.id) ||
+      (tokenHash && responseItem.pack.ownerTokenHash === tokenHash);
 
     if (!isOwner) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function DELETE(
       );
     }
 
-    await db.response.delete({
+    await db.submission.delete({
       where: { id },
     });
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Design"
+  short_description: "Distinctive, intentional visual UI/UX design"
+  default_prompt: "Use $frontend-design for distinctive visual identity, typography, layout, and intentional design choices."

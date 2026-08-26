@@ -3,7 +3,7 @@
 ## 1. 프로젝트 개요
 - **조직:** `moru-org` (Moru Organization)
 - **프로젝트명:** BOTTARI (보따리)
-- **로컬 경로:** `/Users/studio-server/srv/moru-org/bottari`
+- **로컬 경로:** `/srv/moru-org/bottari`
 - **저장소:** `https://github.com/moru-org/bottari`
 - **도메인:** `bottari.moru.my`
 - **목적:** 친구에게 링크 하나 보내서 30초~2분 동안 놀 수 있는 초간단 모바일 웹 놀이터 MVP
@@ -12,10 +12,11 @@
   - 리텐션 루프: Create → Share → Monitor → See Reactions → Share Again → Create Again
 
 ## 2. 인프라 & 배포 아키텍처 (Moru Ecosystem 연동)
+- **실행 서버:** `cy-server` (`192.168.0.10`)
 - **트래픽 인그레스 및 라우팅:**
-  1. `Mac mini (192.168.0.5)`: Public Ingress (포트 80/443 SSL) → `M1 Max (192.168.0.8:8090)` 전달
-  2. `M1 Max (192.168.0.8:8090)`: `moru-nginx` 프록시 → `host.docker.internal:3000` 라우팅 (`server_name bottari.moru.my;`)
-  3. `BOTTARI Container (bottari-app)`: 포트 `3000`에서 Next.js Standalone 서비스 실행
+  1. `cy-server Ingress Nginx (shared-nginx)`: Public Ingress (포트 80/443 SSL) → `bottari.moru.my`를 `host.docker.internal:3000` (또는 `127.0.0.1:3000`)으로 프록시
+  2. `BOTTARI Container (bottari-app)`: 포트 `3000`에서 Next.js Standalone 서비스 실행
+  3. `Moru Gateway 연동`: `MORU_API_URL="http://host.docker.internal:3001"`로 Moru Hub API 연동
 - **컨테이너화 및 데이터 영속화:**
   - `docker-compose.yml` 및 `Dockerfile` (Multi-stage 빌드)
   - 볼륨 마운트: `./data:/app/data` (SQLite DB: `/app/data/bottari.db`)
