@@ -3,7 +3,7 @@
 ## 1. 프로젝트 개요
 - **조직:** `moru-org` (Moru Organization)
 - **프로젝트명:** BOTTARI (보따리)
-- **로컬 경로:** `/srv/moru-org/bottari`
+- **로컬 경로:** `/srv/products/bottari`
 - **저장소:** `https://github.com/moru-org/bottari`
 - **도메인:** `bottari.moru.my`
 - **목적:** 친구에게 링크 하나 보내서 30초~2분 동안 놀 수 있는 초간단 모바일 웹 놀이터 MVP

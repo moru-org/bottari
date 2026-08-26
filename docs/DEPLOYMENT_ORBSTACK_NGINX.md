@@ -72,7 +72,7 @@ HTTP 200 또는 리다이렉트 응답이 오면 연결 준비 완료입니다.
 프로젝트에 포함된 `nginx/bottari.conf` 파일을 Mac mini의 Nginx 설정 디렉토리에 복사합니다:
 ```bash
 # (Mac mini 서버에서 실행)
-sudo cp /srv/moru-org/bottari/nginx/bottari.conf /etc/nginx/sites-available/bottari.conf
+sudo cp /srv/products/bottari/nginx/bottari.conf /etc/nginx/sites-available/bottari.conf
 sudo ln -s /etc/nginx/sites-available/bottari.conf /etc/nginx/sites-enabled/
 ```
 *도메인명(`bottari.yourdomain.com`)과 SSL 인증서 경로는 실제 환경에 맞게 수정합니다.*
